@@ -39,17 +39,10 @@ const database = firebase.database();
 
 // --- Helper Functions ---
 
-/**
- * Generates a more unique ID than Date.now() to prevent collisions.
- * @returns {string} A unique identifier.
- */
 const generateUniqueId = () => {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
-/**
- * Saves the entire data object to Firebase.
- */
 const saveData = () => {
     database.ref(STORAGE_KEY).set(data);
 };
@@ -108,6 +101,7 @@ const renderCompetitions = () => {
             </div>
             <div class="result-entry-form" data-id="${comp.id}">
                 ${renderResultRows(comp)}
+                <button class="save-all-results-btn" data-id="${comp.id}">Save All Results</button>
             </div>
         `;
         competitionsList.appendChild(compCard);
@@ -121,7 +115,7 @@ const renderResultRows = (competition) => {
     places.forEach(place => {
         const result = (competition.results || []).find(r => r.place === place) || { name: '', class: '', team: '' };
         html += `
-            <div class="student-row">
+            <div class="student-row" data-place="${place}">
                 <label>${place}:</label>
                 <input type="text" class="student-name-input" placeholder="Student Name" value="${result.name}">
                 <input type="text" class="student-class-input" placeholder="Class" value="${result.class}">
@@ -129,7 +123,6 @@ const renderResultRows = (competition) => {
                     <option value="">Select Team</option>
                     ${(data.teams || []).map(team => `<option value="${team.name}" ${team.name === result.team ? 'selected' : ''}>${team.name}</option>`).join('')}
                 </select>
-                <button class="save-result-btn" data-place="${place}">Save</button>
             </div>
         `;
     });
@@ -172,6 +165,7 @@ const calculateTeamScores = () => {
 
 const renderPublicView = () => {
     const scores = calculateTeamScores();
+    resultsContainer.innerHTML = ''; // Clear previous content
 
     const createTable = (headers, rows) => {
         const table = document.createElement('table');
@@ -183,8 +177,7 @@ const renderPublicView = () => {
         return table;
     };
 
-    resultsContainer.innerHTML = '';
-
+    // Render Overall Leaderboard
     const overallSection = document.createElement('section');
     overallSection.innerHTML = '<h3>Overall Team Leaderboard</h3>';
     if (scores.overall.length > 0) {
@@ -195,6 +188,7 @@ const renderPublicView = () => {
     }
     resultsContainer.appendChild(overallSection);
 
+    // Render Category-wise Leaderboards
     Object.keys(scores.categories).forEach(catName => {
         const catSection = document.createElement('section');
         catSection.innerHTML = `<h3>${catName} Leaderboard</h3>`;
@@ -203,12 +197,41 @@ const renderPublicView = () => {
             const rows = catScores.map(([team, score], i) => [i + 1, team, score]);
             catSection.appendChild(createTable(['Rank', 'Team', 'Score'], rows));
         } else {
-            catSection.innerHTML += '<p class="no-results-msg">No scores for this category yet.</p>';
+            catSection.innerHTML += `<p class="no-results-msg">No scores for ${catName} yet.</p>`;
         }
         resultsContainer.appendChild(catSection);
     });
-
+    
+    // NEW: Render Individual Competition Results
+    renderIndividualResults();
     populatePublicFilters();
+};
+
+const renderIndividualResults = (competitions = data.competitions || []) => {
+    const individualResultsSection = document.createElement('section');
+    individualResultsSection.id = 'individual-results';
+    individualResultsSection.innerHTML = '<h3>Individual Competition Results</h3>';
+    
+    if (competitions.length > 0) {
+        competitions.forEach(comp => {
+            const cat = (data.categories || []).find(c => c.id === comp.categoryId);
+            const compResultsDiv = document.createElement('div');
+            compResultsDiv.innerHTML = `<h4>${comp.name} - ${cat ? cat.name : 'Unknown'}</h4>`;
+            
+            const results = comp.results || [];
+            if (results.length > 0 && results.some(r => r.name)) {
+                const rows = results.map(r => [r.place, r.name, r.class, r.team]);
+                compResultsDiv.appendChild(createTable(['Place', 'Student', 'Class', 'Team'], rows));
+            } else {
+                compResultsDiv.innerHTML += '<p class="no-results-msg">No results entered for this competition yet.</p>';
+            }
+            individualResultsSection.appendChild(compResultsDiv);
+        });
+    } else {
+        individualResultsSection.innerHTML += '<p class="no-results-msg">No competitions to display.</p>';
+    }
+    // Append at the end of the main results container
+    resultsContainer.appendChild(individualResultsSection);
 };
 
 const populatePublicFilters = () => {
@@ -230,33 +253,19 @@ const filterPublicResults = () => {
     const catId = publicCategoryFilter.value;
 
     if (!compId && !catId) {
-        renderPublicView();
+        renderPublicView(); // If filters cleared, show everything
         return;
     }
 
-    resultsContainer.innerHTML = '';
     let filteredComps = data.competitions || [];
     if (catId) filteredComps = filteredComps.filter(c => c.categoryId == catId);
     if (compId) filteredComps = filteredComps.filter(c => c.id == compId);
-
-    if (filteredComps.length > 0) {
-        filteredComps.forEach(comp => {
-            const cat = (data.categories || []).find(c => c.id === comp.categoryId);
-            const section = document.createElement('section');
-            section.innerHTML = `<h3>${comp.name} - ${cat ? cat.name : 'Unknown'}</h3>`;
-            const results = comp.results || [];
-            if (results.length > 0) {
-                const rows = results.map(r => [r.place, r.name, r.class, r.team]);
-                section.appendChild(createTable(['Place', 'Student', 'Class', 'Team'], rows));
-            } else {
-                section.innerHTML += '<p class="no-results-msg">No results entered for this competition.</p>';
-            }
-            resultsContainer.appendChild(section);
-        });
-    } else {
-        resultsContainer.innerHTML = '<p class="no-results-msg">No competitions match the selected filters.</p>';
-    }
+    
+    // Clear the view and render only the individual results for the filtered competitions
+    resultsContainer.innerHTML = '';
+    renderIndividualResults(filteredComps);
 };
+
 
 // --- Admin Actions ---
 
@@ -291,31 +300,29 @@ const handleDeleteCompetition = (id) => {
     }
 };
 
-const handleSaveResult = (e) => {
-    const compCard = e.target.closest('.competition-card');
-    const compId = compCard.querySelector('.result-entry-form').dataset.id;
+const handleSaveAllResults = (compId) => {
     const competition = (data.competitions || []).find(comp => comp.id == compId);
+    if (!competition) return;
 
-    if (competition) {
-        const place = e.target.dataset.place;
-        const studentRow = e.target.closest('.student-row');
-        const name = studentRow.querySelector('.student-name-input').value.trim();
-        const studentClass = studentRow.querySelector('.student-class-input').value.trim();
-        const team = studentRow.querySelector('.student-team-select').value;
-
-        if (!competition.results) competition.results = [];
-
-        const newResult = { name, place, class: studentClass, team };
-        const index = competition.results.findIndex(r => r.place === place);
-
-        if (index !== -1) {
-            competition.results[index] = newResult;
-        } else {
-            competition.results.push(newResult);
+    const resultForm = document.querySelector(`.result-entry-form[data-id="${compId}"]`);
+    const studentRows = resultForm.querySelectorAll('.student-row');
+    
+    const newResults = [];
+    studentRows.forEach(row => {
+        const place = row.dataset.place;
+        const name = row.querySelector('.student-name-input').value.trim();
+        const studentClass = row.querySelector('.student-class-input').value.trim();
+        const team = row.querySelector('.student-team-select').value;
+        
+        // Only add the result if a student name has been entered
+        if (name) {
+            newResults.push({ name, place, class: studentClass, team });
         }
-        saveData();
-        alert(`Result for ${place} place saved.`);
-    }
+    });
+
+    competition.results = newResults;
+    saveData();
+    alert(`Results for "${competition.name}" saved successfully!`);
 };
 
 
@@ -347,7 +354,7 @@ const setupEventListeners = () => {
         if (name) {
             data.categories.push({ id: generateUniqueId(), name });
             saveData();
-            categoryNameInput.value = ''; // Clear input but keep form open
+            categoryNameInput.value = '';
             alert("Category created.");
         } else {
             alert("Please enter a category name.");
@@ -359,7 +366,7 @@ const setupEventListeners = () => {
         if (name) {
             data.teams.push({ id: generateUniqueId(), name });
             saveData();
-            teamNameInput.value = ''; // Clear input but keep form open
+            teamNameInput.value = '';
             alert("Team created.");
         } else {
             alert("Please enter a team name.");
@@ -387,19 +394,17 @@ const setupEventListeners = () => {
     publicCategoryFilter.addEventListener('change', filterPublicResults);
     publicCompetitionFilter.addEventListener('change', filterPublicResults);
 
-    // Global listener for dynamically created buttons
     document.addEventListener('click', (e) => {
         const target = e.target;
         
         if (target.classList.contains('close-form-btn')) {
-            const formId = target.dataset.form;
-            document.getElementById(formId).classList.add('hidden');
+            document.getElementById(target.dataset.form).classList.add('hidden');
         }
 
         const compId = target.dataset.id;
         if (target.classList.contains('edit-comp-btn')) handleEditCompetition(compId);
         if (target.classList.contains('delete-comp-btn')) handleDeleteCompetition(compId);
-        if (target.classList.contains('save-result-btn')) handleSaveResult(e);
+        if (target.classList.contains('save-all-results-btn')) handleSaveAllResults(compId);
     });
 };
 
@@ -417,7 +422,14 @@ const init = () => {
         renderCategoryTabs();
         renderPublicView();
         if (currentCategory) {
-            renderCompetitions();
+            const updatedCategory = (data.categories || []).find(c => c.id === currentCategory.id);
+            if (updatedCategory) {
+                currentCategory = updatedCategory;
+                renderCompetitions();
+            } else {
+                currentCategory = null;
+                competitionEntry.classList.add('hidden');
+            }
         }
     });
 

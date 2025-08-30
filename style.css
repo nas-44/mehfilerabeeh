@@ -95,7 +95,6 @@ main {
     margin-bottom: 2rem;
 }
 
-/* NEW STYLES FOR FORM BUTTONS */
 .form-buttons {
     display: flex;
     gap: 1rem;
@@ -178,6 +177,15 @@ main {
     padding: 0.6rem;
     border: 1px solid var(--border-color);
     border-radius: 5px;
+}
+
+/* NEW STYLE FOR THE SINGLE SAVE BUTTON */
+.save-all-results-btn {
+    margin-top: 1rem;
+    background-color: #28a745; /* A green color for success */
+}
+.save-all-results-btn:hover {
+    background-color: #218838;
 }
 
 /* Public View Styling */
