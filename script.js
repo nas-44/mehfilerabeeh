@@ -1,11 +1,7 @@
 // --- Data and Constants ---
 const ADMIN_PASSWORD = "nas";
 const STORAGE_KEY = "artsFestData";
-const SCORE_POINTS = {
-    '1st': 10,
-    '2nd': 7,
-    '3rd': 5
-};
+const SCORE_POINTS = { '1st': 10, '2nd': 7, '3rd': 5 };
 
 // --- DOM Elements ---
 const adminLoginBtn = document.getElementById('admin-login-btn');
@@ -28,9 +24,8 @@ const currentCategoryTitle = document.getElementById('current-category-title');
 const addCompetitionForm = document.getElementById('add-competition-form');
 const competitionNameInput = document.getElementById('competition-name-input');
 const competitionsList = document.getElementById('competitions-list');
-const publicCompetitionFilter = document.getElementById('competition-filter');
-const publicCategoryFilter = document.getElementById('category-filter');
 const resultsContainer = document.getElementById('results-container');
+const backToPublicBtn = document.getElementById('back-to-public-btn');
 
 // --- Global State ---
 let data = {};
@@ -38,14 +33,8 @@ let currentCategory = null;
 const database = firebase.database();
 
 // --- Helper Functions ---
-
-const generateUniqueId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2);
-};
-
-const saveData = () => {
-    database.ref(STORAGE_KEY).set(data);
-};
+const generateUniqueId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
+const saveData = () => database.ref(STORAGE_KEY).set(data);
 
 // --- Rendering Functions ---
 
@@ -56,10 +45,7 @@ const renderCategoryTabs = () => {
         tab.className = 'category-tab';
         tab.textContent = category.name;
         tab.dataset.id = category.id;
-
-        if (currentCategory && category.id === currentCategory.id) {
-            tab.classList.add('active');
-        }
+        if (currentCategory && category.id === currentCategory.id) tab.classList.add('active');
 
         tab.addEventListener('click', () => {
             currentCategory = category;
@@ -75,9 +61,7 @@ const renderCategoryTabs = () => {
         deleteBtn.style.backgroundColor = '#dc3545';
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (confirm(`Are you sure you want to delete "${category.name}"? All its competitions will also be removed.`)) {
-                deleteCategory(category.id);
-            }
+            if (confirm(`Delete "${category.name}" and all its competitions?`)) deleteCategory(category.id);
         });
         tab.appendChild(deleteBtn);
         categoryTabsContainer.appendChild(tab);
@@ -87,9 +71,7 @@ const renderCategoryTabs = () => {
 const renderCompetitions = () => {
     competitionsList.innerHTML = '';
     if (!currentCategory) return;
-
     const categoryCompetitions = (data.competitions || []).filter(comp => comp.categoryId === currentCategory.id);
-
     categoryCompetitions.forEach(comp => {
         const compCard = document.createElement('div');
         compCard.className = 'competition-card';
@@ -111,7 +93,6 @@ const renderCompetitions = () => {
 const renderResultRows = (competition) => {
     let html = '';
     const places = ['1st', '2nd', '3rd'];
-
     places.forEach(place => {
         const result = (competition.results || []).find(r => r.place === place) || { name: '', class: '', team: '' };
         html += `
@@ -133,12 +114,11 @@ const renderResultRows = (competition) => {
 
 const calculateTeamScores = () => {
     const teamScores = {};
-    (data.teams || []).forEach(team => { teamScores[team.name] = 0; });
-
+    (data.teams || []).forEach(team => teamScores[team.name] = 0);
     const categoryScores = {};
     (data.categories || []).forEach(category => {
         categoryScores[category.name] = {};
-        (data.teams || []).forEach(team => { categoryScores[category.name][team.name] = 0; });
+        (data.teams || []).forEach(team => categoryScores[category.name][team.name] = 0);
     });
 
     (data.competitions || []).forEach(comp => {
@@ -153,19 +133,16 @@ const calculateTeamScores = () => {
         });
     });
 
-    const sortScores = (scores) => Object.entries(scores).sort(([, a], [, b]) => b - a);
-    const sortedOverall = sortScores(teamScores);
-    const sortedCategories = Object.keys(categoryScores).reduce((acc, cat) => {
-        acc[cat] = sortScores(categoryScores[cat]);
-        return acc;
-    }, {});
-
-    return { overall: sortedOverall, categories: sortedCategories };
+    const sortScores = scores => Object.entries(scores).sort(([, a], [, b]) => b - a);
+    return {
+        overall: sortScores(teamScores),
+        categories: Object.keys(categoryScores).reduce((acc, cat) => ({...acc, [cat]: sortScores(categoryScores[cat])}), {})
+    };
 };
 
 const renderPublicView = () => {
     const scores = calculateTeamScores();
-    resultsContainer.innerHTML = ''; // Clear previous content
+    resultsContainer.innerHTML = '';
 
     const createTable = (headers, rows) => {
         const table = document.createElement('table');
@@ -177,10 +154,9 @@ const renderPublicView = () => {
         return table;
     };
 
-    // Render Overall Leaderboard
     const overallSection = document.createElement('section');
     overallSection.innerHTML = '<h3>Overall Team Leaderboard</h3>';
-    if (scores.overall.length > 0) {
+    if (scores.overall.length > 0 && scores.overall.some(s => s[1] > 0)) {
         const rows = scores.overall.map(([team, score], i) => [i + 1, team, score]);
         overallSection.appendChild(createTable(['Rank', 'Team', 'Score'], rows));
     } else {
@@ -188,7 +164,6 @@ const renderPublicView = () => {
     }
     resultsContainer.appendChild(overallSection);
 
-    // Render Category-wise Leaderboards
     Object.keys(scores.categories).forEach(catName => {
         const catSection = document.createElement('section');
         catSection.innerHTML = `<h3>${catName} Leaderboard</h3>`;
@@ -201,74 +176,9 @@ const renderPublicView = () => {
         }
         resultsContainer.appendChild(catSection);
     });
-    
-    // NEW: Render Individual Competition Results
-    renderIndividualResults();
-    populatePublicFilters();
 };
-
-const renderIndividualResults = (competitions = data.competitions || []) => {
-    const individualResultsSection = document.createElement('section');
-    individualResultsSection.id = 'individual-results';
-    individualResultsSection.innerHTML = '<h3>Individual Competition Results</h3>';
-    
-    if (competitions.length > 0) {
-        competitions.forEach(comp => {
-            const cat = (data.categories || []).find(c => c.id === comp.categoryId);
-            const compResultsDiv = document.createElement('div');
-            compResultsDiv.innerHTML = `<h4>${comp.name} - ${cat ? cat.name : 'Unknown'}</h4>`;
-            
-            const results = comp.results || [];
-            if (results.length > 0 && results.some(r => r.name)) {
-                const rows = results.map(r => [r.place, r.name, r.class, r.team]);
-                compResultsDiv.appendChild(createTable(['Place', 'Student', 'Class', 'Team'], rows));
-            } else {
-                compResultsDiv.innerHTML += '<p class="no-results-msg">No results entered for this competition yet.</p>';
-            }
-            individualResultsSection.appendChild(compResultsDiv);
-        });
-    } else {
-        individualResultsSection.innerHTML += '<p class="no-results-msg">No competitions to display.</p>';
-    }
-    // Append at the end of the main results container
-    resultsContainer.appendChild(individualResultsSection);
-};
-
-const populatePublicFilters = () => {
-    const populate = (select, data, defaultOption) => {
-        select.innerHTML = `<option value="">${defaultOption}</option>`;
-        (data || []).forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = item.name;
-            select.appendChild(option);
-        });
-    };
-    populate(publicCategoryFilter, data.categories, 'All Categories');
-    populate(publicCompetitionFilter, data.competitions, 'All Competitions');
-};
-
-const filterPublicResults = () => {
-    const compId = publicCompetitionFilter.value;
-    const catId = publicCategoryFilter.value;
-
-    if (!compId && !catId) {
-        renderPublicView(); // If filters cleared, show everything
-        return;
-    }
-
-    let filteredComps = data.competitions || [];
-    if (catId) filteredComps = filteredComps.filter(c => c.categoryId == catId);
-    if (compId) filteredComps = filteredComps.filter(c => c.id == compId);
-    
-    // Clear the view and render only the individual results for the filtered competitions
-    resultsContainer.innerHTML = '';
-    renderIndividualResults(filteredComps);
-};
-
 
 // --- Admin Actions ---
-
 const deleteCategory = (id) => {
     data.categories = (data.categories || []).filter(cat => cat.id !== id);
     data.competitions = (data.competitions || []).filter(comp => comp.categoryId !== id);
@@ -277,23 +187,23 @@ const deleteCategory = (id) => {
         competitionEntry.classList.add('hidden');
     }
     saveData();
-    alert("Category and its competitions deleted.");
+    alert("Category deleted.");
 };
 
 const handleEditCompetition = (id) => {
-    const competition = (data.competitions || []).find(comp => comp.id == id);
-    if (competition) {
-        const newName = prompt("Enter new competition name:", competition.name);
+    const comp = (data.competitions || []).find(c => c.id == id);
+    if (comp) {
+        const newName = prompt("Enter new name:", comp.name);
         if (newName && newName.trim()) {
-            competition.name = newName.trim();
+            comp.name = newName.trim();
             saveData();
-            alert("Competition name updated.");
+            alert("Competition updated.");
         }
     }
 };
 
 const handleDeleteCompetition = (id) => {
-    if (confirm("Are you sure you want to delete this competition?")) {
+    if (confirm("Delete this competition?")) {
         data.competitions = (data.competitions || []).filter(comp => comp.id != id);
         saveData();
         alert("Competition deleted.");
@@ -301,38 +211,36 @@ const handleDeleteCompetition = (id) => {
 };
 
 const handleSaveAllResults = (compId) => {
-    const competition = (data.competitions || []).find(comp => comp.id == compId);
-    if (!competition) return;
+    const comp = (data.competitions || []).find(c => c.id == compId);
+    if (!comp) return;
 
     const resultForm = document.querySelector(`.result-entry-form[data-id="${compId}"]`);
     const studentRows = resultForm.querySelectorAll('.student-row');
-    
     const newResults = [];
     studentRows.forEach(row => {
-        const place = row.dataset.place;
         const name = row.querySelector('.student-name-input').value.trim();
-        const studentClass = row.querySelector('.student-class-input').value.trim();
-        const team = row.querySelector('.student-team-select').value;
-        
-        // Only add the result if a student name has been entered
         if (name) {
-            newResults.push({ name, place, class: studentClass, team });
+            newResults.push({
+                place: row.dataset.place,
+                name: name,
+                class: row.querySelector('.student-class-input').value.trim(),
+                team: row.querySelector('.student-team-select').value
+            });
         }
     });
-
-    competition.results = newResults;
+    comp.results = newResults;
     saveData();
-    alert(`Results for "${competition.name}" saved successfully!`);
+    alert(`Results for "${comp.name}" saved.`);
 };
 
-
 // --- Event Listeners Setup ---
-
 const setupEventListeners = () => {
-    adminLoginBtn.addEventListener('click', () => {
+    const toggleAdminView = () => {
         adminPanel.classList.toggle('hidden');
         publicView.classList.toggle('hidden');
-    });
+    };
+    adminLoginBtn.addEventListener('click', toggleAdminView);
+    backToPublicBtn.addEventListener('click', toggleAdminView);
 
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -352,24 +260,22 @@ const setupEventListeners = () => {
     submitCategoryBtn.addEventListener('click', () => {
         const name = categoryNameInput.value.trim();
         if (name) {
+            if (!data.categories) data.categories = [];
             data.categories.push({ id: generateUniqueId(), name });
             saveData();
             categoryNameInput.value = '';
             alert("Category created.");
-        } else {
-            alert("Please enter a category name.");
         }
     });
 
     submitTeamBtn.addEventListener('click', () => {
         const name = teamNameInput.value.trim();
         if (name) {
+            if (!data.teams) data.teams = [];
             data.teams.push({ id: generateUniqueId(), name });
             saveData();
             teamNameInput.value = '';
             alert("Team created.");
-        } else {
-            alert("Please enter a team name.");
         }
     });
 
@@ -377,30 +283,19 @@ const setupEventListeners = () => {
         e.preventDefault();
         const name = competitionNameInput.value.trim();
         if (name && currentCategory) {
-            data.competitions.push({
-                id: generateUniqueId(),
-                categoryId: currentCategory.id,
-                name,
-                results: []
-            });
+            if (!data.competitions) data.competitions = [];
+            data.competitions.push({ id: generateUniqueId(), categoryId: currentCategory.id, name, results: [] });
             saveData();
             competitionNameInput.value = '';
             alert("Competition added.");
-        } else {
-            alert("Please select a category and enter a name.");
         }
     });
 
-    publicCategoryFilter.addEventListener('change', filterPublicResults);
-    publicCompetitionFilter.addEventListener('change', filterPublicResults);
-
     document.addEventListener('click', (e) => {
         const target = e.target;
-        
         if (target.classList.contains('close-form-btn')) {
             document.getElementById(target.dataset.form).classList.add('hidden');
         }
-
         const compId = target.dataset.id;
         if (target.classList.contains('edit-comp-btn')) handleEditCompetition(compId);
         if (target.classList.contains('delete-comp-btn')) handleDeleteCompetition(compId);
@@ -409,22 +304,18 @@ const setupEventListeners = () => {
 };
 
 // --- Initialization ---
-
 const init = () => {
     database.ref(STORAGE_KEY).on('value', (snapshot) => {
         const firebaseData = snapshot.val();
-        
         const defaultData = { categories: [], teams: [], competitions: [] };
         data = { ...defaultData, ...firebaseData };
-
-        console.log("Data synchronized with Firebase:", data);
+        console.log("Data synchronized:", data);
 
         renderCategoryTabs();
         renderPublicView();
         if (currentCategory) {
-            const updatedCategory = (data.categories || []).find(c => c.id === currentCategory.id);
-            if (updatedCategory) {
-                currentCategory = updatedCategory;
+            const categoryStillExists = (data.categories || []).some(c => c.id === currentCategory.id);
+            if (categoryStillExists) {
                 renderCompetitions();
             } else {
                 currentCategory = null;
@@ -432,9 +323,7 @@ const init = () => {
             }
         }
     });
-
     setupEventListeners();
 };
 
-// Start the application
 init();

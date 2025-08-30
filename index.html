@@ -29,6 +29,7 @@
                 <div class="control-buttons">
                     <button id="add-category-btn">Add Category</button>
                     <button id="add-team-btn">Add Team</button>
+                    <button id="back-to-public-btn" class="close-form-btn">Back to Public View</button>
                 </div>
 
                 <div id="add-category-form" class="add-form hidden">
@@ -49,34 +50,25 @@
                     </div>
                 </div>
 
-                <div id="category-tabs-container">
-                </div>
-
+                <div id="category-tabs-container"></div>
                 <div id="competition-entry" class="hidden">
                     <h3 id="current-category-title"></h3>
                     <form id="add-competition-form">
                         <input type="text" id="competition-name-input" placeholder="Competition Name" required>
                         <button type="submit">Add Competition</button>
                     </form>
-
-                    <div id="competitions-list">
-                    </div>
+                    <div id="competitions-list"></div>
                 </div>
             </div>
         </main>
 
         <main id="public-view">
-            <div class="filter-controls">
-                <label for="competition-filter">Filter by Competition:</label>
-                <select id="competition-filter"></select>
-                
-                <label for="category-filter">Filter by Category:</label>
-                <select id="category-filter"></select>
+            <div class="main-page-nav">
+                <h2>Team Leaderboards</h2>
+                <a href="results.html" class="nav-button">View Individual Results</a>
             </div>
-
             <section id="results-container">
-                <p class="no-results-msg">Select a competition and category to view results.</p>
-            </section>
+                </section>
         </main>
     </div>
 
@@ -86,19 +78,15 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
-      // Your web app's Firebase configuration (v8 compatible)
       const firebaseConfig = {
         apiKey: "AIzaSyABYSm67ouiyZglPGgHROFmLTI8eiieRc8",
         authDomain: "mehfile-rabeeh-results.firebaseapp.com",
-        // **THIS LINE IS NOW CORRECTED**
         databaseURL: "https://mehfile-rabeeh-results-default-rtdb.asia-southeast1.firebasedatabase.app/",
         projectId: "mehfile-rabeeh-results",
         storageBucket: "mehfile-rabeeh-results.appspot.com",
         messagingSenderId: "462536141972",
         appId: "1:462536141972:web:4713cda7514fc177d25881",
       };
-
-      // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
     </script>
     <script src="script.js"></script>

@@ -40,7 +40,7 @@ header h1 {
     font-weight: 700;
 }
 
-button {
+button, .nav-button {
     background-color: var(--accent-color);
     color: white;
     border: none;
@@ -49,11 +49,16 @@ button {
     cursor: pointer;
     font-weight: 600;
     transition: transform 0.2s, background-color 0.2s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    font-size: 1rem;
 }
 
-button:hover {
+button:hover, .nav-button:hover {
     transform: translateY(-2px);
     background-color: #c9304c;
+    color: white;
 }
 
 main {
@@ -90,9 +95,10 @@ main {
 
 .control-buttons {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     justify-content: center;
     margin-bottom: 2rem;
+    flex-wrap: wrap;
 }
 
 .form-buttons {
@@ -106,7 +112,6 @@ main {
 .close-form-btn:hover {
     background-color: var(--close-btn-hover-color);
 }
-
 
 .category-tab {
     padding: 0.75rem 1.5rem;
@@ -179,27 +184,39 @@ main {
     border-radius: 5px;
 }
 
-/* NEW STYLE FOR THE SINGLE SAVE BUTTON */
 .save-all-results-btn {
     margin-top: 1rem;
-    background-color: #28a745; /* A green color for success */
+    background-color: #28a745;
 }
 .save-all-results-btn:hover {
     background-color: #218838;
 }
 
-/* Public View Styling */
-#public-view {
-    padding: 2rem;
-    background-color: var(--card-background);
+/* Public View & New Results Page Styling */
+.main-page-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.main-page-nav h2 {
+    margin: 0;
+    color: var(--primary-color);
 }
 
 .filter-controls {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     margin-bottom: 2rem;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
 }
 
 .filter-controls select {
@@ -208,12 +225,19 @@ main {
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
+    min-width: 250px;
 }
 
-#results-container h3 {
+#results-container h3, #individual-results-page h2, #individual-results-page h3 {
     border-bottom: 2px solid var(--primary-color);
     padding-bottom: 0.5rem;
     color: var(--primary-color);
+}
+#individual-results-container h3 {
+    border-bottom: none;
+}
+#individual-results-container section {
+    margin-top: 2rem;
 }
 
 .result-table {
@@ -257,6 +281,10 @@ main {
     header {
         flex-direction: column;
         text-align: center;
+        gap: 1rem;
+    }
+    .main-page-nav {
+        flex-direction: column;
         gap: 1rem;
     }
     .filter-controls {
