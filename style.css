@@ -8,6 +8,9 @@
     --border-color: #dddfe2;
     --close-btn-color: #6c757d;
     --close-btn-hover-color: #5a6268;
+    /* NEW: Colors for publish buttons */
+    --publish-btn-color: #007bff;
+    --publish-btn-hover-color: #0069d9;
 }
 
 body {
@@ -164,6 +167,21 @@ main {
     border-radius: 8px;
 }
 
+/* NEW: Styles for publish and unpublish buttons */
+.publish-btn {
+    background-color: var(--publish-btn-color);
+}
+.publish-btn:hover {
+    background-color: var(--publish-btn-hover-color);
+}
+.unpublish-btn {
+    background-color: var(--close-btn-color);
+}
+.unpublish-btn:hover {
+    background-color: var(--close-btn-hover-color);
+}
+
+
 .result-entry-form {
     display: flex;
     flex-direction: column;
@@ -266,7 +284,7 @@ main {
 }
 
 .result-table tr:hover {
-    background-color: #f2f2f2;
+    background-color: #f2f2f8;
 }
 
 .no-results-msg {

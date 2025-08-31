@@ -50,12 +50,13 @@ const renderSelectedCompetition = () => {
 
 const populateCompetitionFilter = () => {
     const selectedCategoryId = categorySelect.value;
-    competitionSelect.innerHTML = '<option value="">-- Choose a competition --</option>'; // Reset
+    competitionSelect.innerHTML = '<option value="">-- Choose a competition --</option>'; 
     
     if (!selectedCategoryId) return;
 
+    // NEW: Filter for only published competitions
     const competitions = (allData.competitions || [])
-        .filter(comp => comp.categoryId === selectedCategoryId)
+        .filter(comp => comp.categoryId === selectedCategoryId && comp.isPublished)
         .sort((a, b) => a.name.localeCompare(b.name));
 
     competitions.forEach(comp => {
@@ -69,7 +70,13 @@ const populateCompetitionFilter = () => {
 const populateCategoryFilter = () => {
     const categories = (allData.categories || []).sort((a, b) => a.name.localeCompare(b.name));
     
-    categories.forEach(cat => {
+    // NEW: Only include categories that have at least one published competition
+    const publishedCompetitions = allData.competitions.filter(c => c.isPublished);
+    const categoriesWithPublishedResults = categories.filter(cat => 
+        publishedCompetitions.some(comp => comp.categoryId === cat.id)
+    );
+
+    categoriesWithPublishedResults.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat.id;
         option.textContent = cat.name;
@@ -82,8 +89,7 @@ const init = () => {
         const firebaseData = snapshot.val();
         const defaultData = { categories: [], teams: [], competitions: [] };
         allData = { ...defaultData, ...firebaseData };
-
-        console.log("Data loaded for results page:", allData);
+        
         populateCategoryFilter();
     });
 

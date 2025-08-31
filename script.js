@@ -73,11 +73,17 @@ const renderCompetitions = () => {
     if (!currentCategory) return;
     const categoryCompetitions = (data.competitions || []).filter(comp => comp.categoryId === currentCategory.id);
     categoryCompetitions.forEach(comp => {
+        // NEW: Determine button text and class based on published status
+        const isPublished = comp.isPublished || false;
+        const publishBtnText = isPublished ? 'Unpublish' : 'Publish';
+        const publishBtnClass = isPublished ? 'unpublish-btn' : 'publish-btn';
+
         const compCard = document.createElement('div');
         compCard.className = 'competition-card';
         compCard.innerHTML = `
             <h4>${comp.name}</h4>
             <div class="edit-delete-buttons">
+                <button class="${publishBtnClass}" data-id="${comp.id}">${publishBtnText}</button>
                 <button class="edit-comp-btn" data-id="${comp.id}">Edit Name</button>
                 <button class="delete-comp-btn" data-id="${comp.id}">Delete</button>
             </div>
@@ -121,7 +127,10 @@ const calculateTeamScores = () => {
         (data.teams || []).forEach(team => categoryScores[category.name][team.name] = 0);
     });
 
-    (data.competitions || []).forEach(comp => {
+    // NEW: Filter for only published competitions before calculating scores
+    const publishedCompetitions = (data.competitions || []).filter(comp => comp.isPublished);
+
+    publishedCompetitions.forEach(comp => {
         const category = (data.categories || []).find(cat => cat.id === comp.categoryId);
         if (!category) return;
         (comp.results || []).forEach(result => {
@@ -160,7 +169,7 @@ const renderPublicView = () => {
         const rows = scores.overall.map(([team, score], i) => [i + 1, team, score]);
         overallSection.appendChild(createTable(['Rank', 'Team', 'Score'], rows));
     } else {
-        overallSection.innerHTML += '<p class="no-results-msg">No team scores yet.</p>';
+        overallSection.innerHTML += '<p class="no-results-msg">No published results to display.</p>';
     }
     resultsContainer.appendChild(overallSection);
 
@@ -172,13 +181,24 @@ const renderPublicView = () => {
             const rows = catScores.map(([team, score], i) => [i + 1, team, score]);
             catSection.appendChild(createTable(['Rank', 'Team', 'Score'], rows));
         } else {
-            catSection.innerHTML += `<p class="no-results-msg">No scores for ${catName} yet.</p>`;
+            catSection.innerHTML += `<p class="no-results-msg">No published results for ${catName} yet.</p>`;
         }
         resultsContainer.appendChild(catSection);
     });
 };
 
 // --- Admin Actions ---
+
+const handlePublishToggle = (id) => {
+    const comp = (data.competitions || []).find(c => c.id == id);
+    if (comp) {
+        comp.isPublished = !comp.isPublished; // Toggle the status
+        saveData();
+        const action = comp.isPublished ? "published" : "hidden";
+        alert(`Competition "${comp.name}" is now ${action}.`);
+    }
+};
+
 const deleteCategory = (id) => {
     data.categories = (data.categories || []).filter(cat => cat.id !== id);
     data.competitions = (data.competitions || []).filter(comp => comp.categoryId !== id);
@@ -247,7 +267,6 @@ const setupEventListeners = () => {
         if (adminPasswordInput.value === ADMIN_PASSWORD) {
             loginForm.classList.add('hidden');
             adminContent.classList.remove('hidden');
-            alert("Login successful!");
         } else {
             alert("Incorrect password.");
         }
@@ -264,7 +283,6 @@ const setupEventListeners = () => {
             data.categories.push({ id: generateUniqueId(), name });
             saveData();
             categoryNameInput.value = '';
-            alert("Category created.");
         }
     });
 
@@ -275,7 +293,6 @@ const setupEventListeners = () => {
             data.teams.push({ id: generateUniqueId(), name });
             saveData();
             teamNameInput.value = '';
-            alert("Team created.");
         }
     });
 
@@ -284,10 +301,15 @@ const setupEventListeners = () => {
         const name = competitionNameInput.value.trim();
         if (name && currentCategory) {
             if (!data.competitions) data.competitions = [];
-            data.competitions.push({ id: generateUniqueId(), categoryId: currentCategory.id, name, results: [] });
+            data.competitions.push({
+                id: generateUniqueId(),
+                categoryId: currentCategory.id,
+                name,
+                results: [],
+                isPublished: false // NEW: Competitions are unpublished by default
+            });
             saveData();
             competitionNameInput.value = '';
-            alert("Competition added.");
         }
     });
 
@@ -297,6 +319,7 @@ const setupEventListeners = () => {
             document.getElementById(target.dataset.form).classList.add('hidden');
         }
         const compId = target.dataset.id;
+        if (target.classList.contains('publish-btn') || target.classList.contains('unpublish-btn')) handlePublishToggle(compId);
         if (target.classList.contains('edit-comp-btn')) handleEditCompetition(compId);
         if (target.classList.contains('delete-comp-btn')) handleDeleteCompetition(compId);
         if (target.classList.contains('save-all-results-btn')) handleSaveAllResults(compId);
@@ -309,8 +332,7 @@ const init = () => {
         const firebaseData = snapshot.val();
         const defaultData = { categories: [], teams: [], competitions: [] };
         data = { ...defaultData, ...firebaseData };
-        console.log("Data synchronized:", data);
-
+        
         renderCategoryTabs();
         renderPublicView();
         if (currentCategory) {
