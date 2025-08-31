@@ -26,6 +26,8 @@ const competitionNameInput = document.getElementById('competition-name-input');
 const competitionsList = document.getElementById('competitions-list');
 const resultsContainer = document.getElementById('results-container');
 const backToPublicBtn = document.getElementById('back-to-public-btn');
+const canvas = document.getElementById('poster-canvas'); // Get canvas element
+const ctx = canvas.getContext('2d'); // Get canvas context
 
 // --- Global State ---
 let data = {};
@@ -73,7 +75,6 @@ const renderCompetitions = () => {
     if (!currentCategory) return;
     const categoryCompetitions = (data.competitions || []).filter(comp => comp.categoryId === currentCategory.id);
     categoryCompetitions.forEach(comp => {
-        // NEW: Determine button text and class based on published status
         const isPublished = comp.isPublished || false;
         const publishBtnText = isPublished ? 'Unpublish' : 'Publish';
         const publishBtnClass = isPublished ? 'unpublish-btn' : 'publish-btn';
@@ -83,6 +84,7 @@ const renderCompetitions = () => {
         compCard.innerHTML = `
             <h4>${comp.name}</h4>
             <div class="edit-delete-buttons">
+                <button class="generate-poster-btn" data-id="${comp.id}">Generate Poster</button>
                 <button class="${publishBtnClass}" data-id="${comp.id}">${publishBtnText}</button>
                 <button class="edit-comp-btn" data-id="${comp.id}">Edit Name</button>
                 <button class="delete-comp-btn" data-id="${comp.id}">Delete</button>
@@ -126,10 +128,7 @@ const calculateTeamScores = () => {
         categoryScores[category.name] = {};
         (data.teams || []).forEach(team => categoryScores[category.name][team.name] = 0);
     });
-
-    // NEW: Filter for only published competitions before calculating scores
     const publishedCompetitions = (data.competitions || []).filter(comp => comp.isPublished);
-
     publishedCompetitions.forEach(comp => {
         const category = (data.categories || []).find(cat => cat.id === comp.categoryId);
         if (!category) return;
@@ -141,7 +140,6 @@ const calculateTeamScores = () => {
             }
         });
     });
-
     const sortScores = scores => Object.entries(scores).sort(([, a], [, b]) => b - a);
     return {
         overall: sortScores(teamScores),
@@ -152,7 +150,6 @@ const calculateTeamScores = () => {
 const renderPublicView = () => {
     const scores = calculateTeamScores();
     resultsContainer.innerHTML = '';
-
     const createTable = (headers, rows) => {
         const table = document.createElement('table');
         table.className = 'result-table';
@@ -162,7 +159,6 @@ const renderPublicView = () => {
         `;
         return table;
     };
-
     const overallSection = document.createElement('section');
     overallSection.innerHTML = '<h3>Overall Team Leaderboard</h3>';
     if (scores.overall.length > 0 && scores.overall.some(s => s[1] > 0)) {
@@ -172,7 +168,6 @@ const renderPublicView = () => {
         overallSection.innerHTML += '<p class="no-results-msg">No published results to display.</p>';
     }
     resultsContainer.appendChild(overallSection);
-
     Object.keys(scores.categories).forEach(catName => {
         const catSection = document.createElement('section');
         catSection.innerHTML = `<h3>${catName} Leaderboard</h3>`;
@@ -189,10 +184,63 @@ const renderPublicView = () => {
 
 // --- Admin Actions ---
 
+const generatePoster = (compId) => {
+    const competition = (data.competitions || []).find(c => c.id === compId);
+    if (!competition) {
+        alert("Could not find competition data to generate poster.");
+        return;
+    }
+    const logo = new Image();
+    logo.crossOrigin = "Anonymous";
+    logo.src = 'new-logo.png'; // Make sure mehfil.png is in the same folder as index.html
+    logo.onload = () => {
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#3b5998');
+        gradient.addColorStop(1, '#8b9dc3');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const logoWidth = 200;
+        const logoHeight = (logo.height / logo.width) * logoWidth;
+        ctx.drawImage(logo, (canvas.width - logoWidth) / 2, 80, logoWidth, logoHeight);
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 72px sans-serif';
+        ctx.fillText('MEHFILE RABEEH', canvas.width / 2, 350);
+        ctx.font = '48px sans-serif';
+        ctx.fillText('MEELAD FEST', canvas.width / 2, 410);
+        ctx.font = 'bold 56px sans-serif';
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(competition.name, canvas.width / 2, 520);
+        ctx.fillStyle = 'white';
+        const sortedResults = (competition.results || []).sort((a, b) => parseInt(a.place) - parseInt(b.place));
+        let startY = 620;
+        sortedResults.forEach(winner => {
+            if (winner.name) {
+                ctx.font = 'bold 48px sans-serif';
+                ctx.fillText(`${winner.place} Place`, canvas.width / 2, startY);
+                ctx.font = '36px sans-serif';
+                ctx.fillText(winner.name, canvas.width / 2, startY + 50);
+                ctx.font = 'italic 28px sans-serif';
+                ctx.fillText(winner.team || 'No Team', canvas.width / 2, startY + 90);
+                startY += 130;
+            }
+        });
+        ctx.font = '24px sans-serif';
+        ctx.fillText('Hayathul Islam Higher Secondary Madrasa, Muringampurayi', canvas.width / 2, canvas.height - 50);
+        const link = document.createElement('a');
+        link.download = `Winners - ${competition.name}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+    logo.onerror = () => {
+        alert("Error: Could not load logo. Make sure 'mehfil.png' is in the project folder.");
+    };
+};
+
 const handlePublishToggle = (id) => {
     const comp = (data.competitions || []).find(c => c.id == id);
     if (comp) {
-        comp.isPublished = !comp.isPublished; // Toggle the status
+        comp.isPublished = !comp.isPublished;
         saveData();
         const action = comp.isPublished ? "published" : "hidden";
         alert(`Competition "${comp.name}" is now ${action}.`);
@@ -233,7 +281,6 @@ const handleDeleteCompetition = (id) => {
 const handleSaveAllResults = (compId) => {
     const comp = (data.competitions || []).find(c => c.id == compId);
     if (!comp) return;
-
     const resultForm = document.querySelector(`.result-entry-form[data-id="${compId}"]`);
     const studentRows = resultForm.querySelectorAll('.student-row');
     const newResults = [];
@@ -301,13 +348,7 @@ const setupEventListeners = () => {
         const name = competitionNameInput.value.trim();
         if (name && currentCategory) {
             if (!data.competitions) data.competitions = [];
-            data.competitions.push({
-                id: generateUniqueId(),
-                categoryId: currentCategory.id,
-                name,
-                results: [],
-                isPublished: false // NEW: Competitions are unpublished by default
-            });
+            data.competitions.push({ id: generateUniqueId(), categoryId: currentCategory.id, name, results: [], isPublished: false });
             saveData();
             competitionNameInput.value = '';
         }
@@ -323,6 +364,7 @@ const setupEventListeners = () => {
         if (target.classList.contains('edit-comp-btn')) handleEditCompetition(compId);
         if (target.classList.contains('delete-comp-btn')) handleDeleteCompetition(compId);
         if (target.classList.contains('save-all-results-btn')) handleSaveAllResults(compId);
+        if (target.classList.contains('generate-poster-btn')) generatePoster(compId); // NEW: Handle poster button
     });
 };
 

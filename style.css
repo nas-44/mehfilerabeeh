@@ -8,9 +8,11 @@
     --border-color: #dddfe2;
     --close-btn-color: #6c757d;
     --close-btn-hover-color: #5a6268;
-    /* NEW: Colors for publish buttons */
     --publish-btn-color: #007bff;
     --publish-btn-hover-color: #0069d9;
+    /* NEW: Color for poster button */
+    --poster-btn-color: #17a2b8;
+    --poster-btn-hover-color: #138496;
 }
 
 body {
@@ -158,7 +160,10 @@ main {
     top: 15px;
     right: 15px;
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    justify-content: flex-end;
+    max-width: 250px;
 }
 
 .edit-delete-buttons button {
@@ -167,7 +172,6 @@ main {
     border-radius: 8px;
 }
 
-/* NEW: Styles for publish and unpublish buttons */
 .publish-btn {
     background-color: var(--publish-btn-color);
 }
@@ -179,6 +183,13 @@ main {
 }
 .unpublish-btn:hover {
     background-color: var(--close-btn-hover-color);
+}
+/* NEW: Poster button style */
+.generate-poster-btn {
+    background-color: var(--poster-btn-color);
+}
+.generate-poster-btn:hover {
+    background-color: var(--poster-btn-hover-color);
 }
 
 
@@ -210,7 +221,7 @@ main {
     background-color: #218838;
 }
 
-/* Public View & New Results Page Styling */
+/* Public View & Results Page Styling */
 .main-page-nav {
     display: flex;
     justify-content: space-between;
